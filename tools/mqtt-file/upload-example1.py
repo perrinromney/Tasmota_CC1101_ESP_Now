@@ -41,7 +41,7 @@ import hashlib
 broker = "domus1"                      # MQTT broker ip address or name
 broker_port = 1883                     # MQTT broker port
 
-mytopic = "Demo"                       # Tasmota MQTT topic
+mytopic = "demo"                       # Tasmota MQTT topic
 myfile = "Config_demo_9.4.0.3.dmp"     # Tasmota Settings file name
 myfiletype = 2                         # Tasmota Settings file type
 
@@ -54,8 +54,7 @@ myfilesize = 4096
 myid = 1620484815
 
 # Derive fulltopic from broker LWT message
-mypublish = "cmnd/" + mytopic + "/fileupload"
-mysubscribe = "stat/" + mytopic + "/fileupload"
+mypublish = "cmnd/"+mytopic+"/fileupload"
 
 # Tasmota currently supports MQTT message size of 1040 characters. Base64 adds 0.25 chars
 chucksize = 700                        # Tasmota max chunk size
@@ -66,6 +65,9 @@ sleeptime = 0.2
 client = mqtt.Client()
 client.connect(broker, broker_port)
 
+time_start = time.time()
+print("Uploading file "+myfile+" to "+mytopic+" ...")
+
 client.publish(mypublish, "{\"File\":\""+myfile+"\",\"Id\":"+str(myid)+",\"Type\":"+str(myfiletype)+",\"Size\":"+str(myfilesize)+"}")
 
 out_hash_md5 = hashlib.md5()
@@ -73,7 +75,9 @@ out_hash_md5 = hashlib.md5()
 fo = open(myfile,"rb")
 Run_flag = True
 while Run_flag:
-   chunk=fo.read(chucksize)
+   time.sleep(sleeptime)               # We do not use Ack here
+
+   chunk = fo.read(chucksize)
    if chunk:
       out_hash_md5.update(chunk)       # Update hash
       base64_encoded_data = base64.b64encode(chunk)
@@ -81,11 +85,13 @@ while Run_flag:
       client.publish(mypublish, "{\"Id\":"+str(myid)+",\"Data\":\""+base64_data+"\"}")
 
    else:
+      md5_hash = out_hash_md5.hexdigest()
+      client.publish(mypublish, "{\"Id\":"+str(myid)+",\"Md5\":\""+md5_hash+"\"}")
       Run_flag=False
-   time.sleep(sleeptime)               # We do not use Ack here
-
-md5_hash = out_hash_md5.hexdigest()
-client.publish(mypublish, "{\"Id\":"+str(myid)+",\"Md5\":\""+md5_hash+"\"}")
 
 fo.close()
+
+time_taken = time.time() - time_start
+print("Done in "+str("%.2f"%time_taken)+" seconds")
+
 client.disconnect()                    # Disconnect
