@@ -99,4 +99,24 @@ class lv_wifi_bars: lv_signal_bars
       self.set_percentage(quality)
     end
   end
+
+  def del()
+    super(self).del()
+    tasmota.remove_driver(self)
+  end
+end
+
+class lv_wifi_bars_icon: lv_wifi_bars
+  def init(parent, copy)
+    super(self).init(parent, copy)
+    self.set_style_local_bg_color(lv.OBJ_PART_MAIN, lv.STATE_DEFAULT, lv_color(lv.COLOR_BLACK))
+    if parent != nil
+      var parent_height = parent.get_height()
+      var pad_right = parent.get_style_pad_right(lv.OBJ_PART_MAIN, lv.STATE_DEFAULT)
+      self.set_height(parent_height)
+      self.set_width(parent_height)
+      self.set_x(parent.get_width() - parent_height - pad_right)
+      parent.set_style_local_pad_right(lv.OBJ_PART_MAIN, lv.STATE_DEFAULT, pad_right + parent_height + 1)
+    end
+  end
 end
