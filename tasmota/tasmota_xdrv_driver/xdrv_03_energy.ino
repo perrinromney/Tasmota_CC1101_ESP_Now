@@ -17,10 +17,10 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-//#ifdef ESP8266
+#ifdef ESP8266
 #ifdef USE_ENERGY_SENSOR
 /*********************************************************************************************\
- * Energy
+ * Energy for ESP8266
 \*********************************************************************************************/
 
 #define XDRV_03                3
@@ -31,6 +31,8 @@
 
 #define ENERGY_NONE            0
 #define ENERGY_WATCHDOG        4        // Allow up to 4 seconds before deciding no valid data present
+
+#undef ENERGY_MAX_PHASES
 #define ENERGY_MAX_PHASES      3
 
 #include <Ticker.h>
@@ -860,7 +862,7 @@ void CmndTariff(void) {
     GetStateText(Settings->flag3.energy_weekend));             // CMND_TARIFF
 }
 
-uint32_t EnergyGetCalibration(uint32_t chan, uint32_t cal_type) {
+uint32_t EnergyGetCalibration(uint32_t cal_type, uint32_t chan = 0) {
   uint32_t channel = ((1 == chan) && (2 == Energy->phase_count)) ? 1 : 0;
   if (channel) {
     switch (cal_type) {
@@ -878,32 +880,36 @@ uint32_t EnergyGetCalibration(uint32_t chan, uint32_t cal_type) {
   return Settings->energy_frequency_calibration;
 }
 
+void EnergySetCalibration(uint32_t cal_type, uint32_t value, uint32_t chan = 0) {
+  uint32_t channel = ((1 == chan) && (2 == Energy->phase_count)) ? 1 : 0;
+  if (channel) {
+    switch (cal_type) {
+      case ENERGY_POWER_CALIBRATION: Settings->energy_power_calibration2 = value; return;
+      case ENERGY_VOLTAGE_CALIBRATION: Settings->energy_voltage_calibration2 = value; return;
+      case ENERGY_CURRENT_CALIBRATION: Settings->energy_current_calibration2 = value; return;
+      case ENERGY_FREQUENCY_CALIBRATION: Settings->energy_frequency_calibration = value; return;
+    }
+  } else {
+    switch (cal_type) {
+      case ENERGY_POWER_CALIBRATION: Settings->energy_power_calibration = value; return;
+      case ENERGY_VOLTAGE_CALIBRATION: Settings->energy_voltage_calibration = value; return;
+      case ENERGY_CURRENT_CALIBRATION: Settings->energy_current_calibration = value; return;
+      case ENERGY_FREQUENCY_CALIBRATION: Settings->energy_frequency_calibration = value; return;
+    }
+  }
+}
+
 void EnergyCommandCalSetResponse(uint32_t cal_type) {
   if (XdrvMailbox.payload > 99) {
-    uint32_t channel = ((2 == XdrvMailbox.index) && (2 == Energy->phase_count)) ? 1 : 0;
-    if (channel) {
-      switch (cal_type) {
-        case ENERGY_POWER_CALIBRATION: Settings->energy_power_calibration2 = XdrvMailbox.payload; break;
-        case ENERGY_VOLTAGE_CALIBRATION: Settings->energy_voltage_calibration2 = XdrvMailbox.payload; break;
-        case ENERGY_CURRENT_CALIBRATION: Settings->energy_current_calibration2 = XdrvMailbox.payload; break;
-        case ENERGY_FREQUENCY_CALIBRATION: Settings->energy_frequency_calibration = XdrvMailbox.payload; break;
-      }
-    } else {
-      switch (cal_type) {
-        case ENERGY_POWER_CALIBRATION: Settings->energy_power_calibration = XdrvMailbox.payload; break;
-        case ENERGY_VOLTAGE_CALIBRATION: Settings->energy_voltage_calibration = XdrvMailbox.payload; break;
-        case ENERGY_CURRENT_CALIBRATION: Settings->energy_current_calibration = XdrvMailbox.payload; break;
-        case ENERGY_FREQUENCY_CALIBRATION: Settings->energy_frequency_calibration = XdrvMailbox.payload; break;
-      }
-    }
+    EnergySetCalibration(cal_type, XdrvMailbox.payload, XdrvMailbox.index -1);
   }
   if (ENERGY_FREQUENCY_CALIBRATION == cal_type) {
     ResponseAppend_P(PSTR("%d}"), Settings->energy_frequency_calibration);
   } else {
     if (2 == Energy->phase_count) {
-      ResponseAppend_P(PSTR("[%d,%d]}"), EnergyGetCalibration(0, cal_type), EnergyGetCalibration(1, cal_type));
+      ResponseAppend_P(PSTR("[%d,%d]}"), EnergyGetCalibration(cal_type), EnergyGetCalibration(cal_type, 1));
     } else {
-      ResponseAppend_P(PSTR("%d}"), EnergyGetCalibration(0, cal_type));
+      ResponseAppend_P(PSTR("%d}"), EnergyGetCalibration(cal_type));
     }
   }
 }
@@ -1494,4 +1500,4 @@ bool Xsns03(uint32_t function)
 }
 
 #endif  // USE_ENERGY_SENSOR
-//#endif  // ESP8266
+#endif  // ESP8266
