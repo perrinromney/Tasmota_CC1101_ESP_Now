@@ -10,14 +10,15 @@ import solidify
 import string
 import re
 
-# import sys
-# sys.path().push('src/embedded')   # allow to import from src/embedded
+import sys
+sys.path().push('src/embedded')   # allow to import from src/embedded
 
 # globals that need to exist to make compilation succeed
-var globs = "path,ctypes_bytes_dyn,tasmota,ccronexpr,gpio,light,webclient,load,MD5,lv,light_state,"
+var globs = "path,ctypes_bytes_dyn,tasmota,ccronexpr,gpio,light,webclient,load,MD5,lv,light_state,udp,"
             "lv_clock,lv_clock_icon,lv_signal_arcs,lv_signal_bars,lv_wifi_arcs_icon,lv_wifi_arcs,"
             "lv_wifi_bars_icon,lv_wifi_bars,"
-            "_lvgl"
+            "_lvgl,"
+            "int64"
 
 for g:string.split(globs, ",")
   global.(g) = nil
