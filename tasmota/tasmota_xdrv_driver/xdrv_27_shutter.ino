@@ -1,7 +1,7 @@
 /*
-  xdrv_27_Shutter[i].ino - Shutter/Blind support for Tasmota
+  xdrv_27_Shutter.ino - Shutter/Blind support for Tasmota
 
-  Copyright (C) 2022  Stefan Bode
+  Copyright (C) 2023  Stefan Bode
 
   This program is free software: you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -17,6 +17,22 @@
   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+// Start temporarly extra tests for overriding USE_SHUTTER_ESP32 ****
+// Remove once tests complete
+#ifdef ESP8266
+#define USE_SHUTTER_ESP8266
+#endif
+
+#ifdef ESP32
+#ifndef USE_SHUTTER_ESP32
+#define USE_SHUTTER_ESP8266
+#endif  // No USE_SHUTTER_ESP32
+#endif  // ESP32
+
+#ifdef USE_SHUTTER_ESP8266
+// End **************************************************************
+
+//#ifdef ESP8266
 #ifdef USE_SHUTTER
 /*********************************************************************************************\
  * Shutter or Blind support using two consecutive relays
@@ -125,6 +141,27 @@ struct SHUTTERGLOBAL {
 } ShutterGlobal;
 
 #define SHT_DIV_ROUND(__A, __B) (((__A) + (__B)/2) / (__B))
+
+bool ShutterStatus(void) {
+  if (Settings->flag3.shutter_mode) {  // SetOption80  - (Shutter) Enable shutter support (1)
+    Response_P(PSTR("{\"" D_CMND_STATUS D_STATUS13_SHUTTER "\":{"));
+    for (uint32_t i = 0; i < MAX_SHUTTERS; i++) {
+      if (0 == Settings->shutter_startrelay[i]) { break; }
+      if (i > 0) { ResponseAppend_P(PSTR(",")); }
+      ResponseAppend_P(PSTR("\"" D_STATUS13_SHUTTER "%d\":{\"Relay1\":%d,\"Relay2\":%d,\"Open\":%d,\"Close\":%d,"
+                                  "\"50perc\":%d,\"Delay\":%d,\"Opt\":\"%s\","
+                                  "\"Calib\":[%d,%d,%d,%d,%d],"
+                                  "\"Mode\":\"%d\"}"),
+                                  i, Settings->shutter_startrelay[i], Settings->shutter_startrelay[i] +1, Settings->shutter_opentime[i], Settings->shutter_closetime[i],
+                                  Settings->shutter_set50percent[i], Settings->shutter_motordelay[i], GetBinary8(Settings->shutter_options[i], 4).c_str(),
+                                  Settings->shuttercoeff[0][i], Settings->shuttercoeff[1][i], Settings->shuttercoeff[2][i], Settings->shuttercoeff[3][i], Settings->shuttercoeff[4][i],
+                                  Settings->shutter_mode);
+    }
+    ResponseJsonEndEnd();
+    return true;
+  }
+  return false;
+}
 
 
 void ShutterLogPos(uint32_t i)
@@ -877,7 +914,7 @@ bool ShutterButtonIsSimultaneousHold(uint32_t button_index, uint32_t shutter_ind
   return ((-1 != min_shutterbutton_hold_timer) && (min_shutterbutton_hold_timer > (Button.hold_timer[button_index]>>1)));
 }
 
-void ShutterButtonHandler(void)
+bool ShutterButtonHandler(void)
 {
   uint8_t buttonState = SHT_NOT_PRESSED;
   uint8_t button = XdrvMailbox.payload;
@@ -1002,14 +1039,14 @@ void ShutterButtonHandler(void)
         char scmnd[20];
         snprintf_P(scmnd, sizeof(scmnd), PSTR(D_CMND_WIFICONFIG " 2"));
         ExecuteCommand(scmnd, SRC_BUTTON);
-        return;
+        return true;
       } else if ((buttonState == SHT_PRESSED_EXT_HOLD_SIMULTANEOUS) || ((shutter_index_num_buttons==1) && (buttonState == SHT_PRESSED_EXT_HOLD))){
         // no SetOption1 (0) checked above
         // simultaneous or stand alone button extended hold detected
         char scmnd[20];
         snprintf_P(scmnd, sizeof(scmnd), PSTR(D_CMND_RESET " 1"));
         ExecuteCommand(scmnd, SRC_BUTTON);
-        return;
+        return true;
       }
     }
     if (buttonState <= SHT_PRESSED_IMMEDIATE) {
@@ -1068,6 +1105,7 @@ void ShutterButtonHandler(void)
     ResponseJsonEnd();
     MqttPublishPrefixTopicRulesProcess_P(RESULT_OR_STAT, PSTR(D_PRFX_SHUTTER));
   }
+  return true;
 }
 
 void ShutterSetPosition(uint32_t device, uint32_t position)
@@ -1941,3 +1979,5 @@ void CmndShutterUnitTest(void) {
 #else
 void CmndShutterUnitTest(void) {}
 #endif
+
+#endif  // ESP8266
