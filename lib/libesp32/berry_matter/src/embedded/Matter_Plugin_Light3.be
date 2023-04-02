@@ -37,7 +37,7 @@ class Matter_Plugin_Light3 : Matter_Plugin
   static var TYPES = { 0x010D: 2 }                  # Extended Color Light
 
   var shadow_hue, shadow_bri, shadow_sat
-  var shadow_onoff                           # fake status for now # TODO
+  var shadow_onoff
 
   #############################################################
   # Constructor
@@ -223,9 +223,10 @@ class Matter_Plugin_Light3 : Matter_Plugin
     elif cluster == 0x0008              # ========== Level Control 1.6 p.57 ==========
       if   command == 0x0000            # ---------- MoveToLevel ----------
         var bri_in = val.findsubval(0)  # Hue 0..254
-        var bri = tasmota.scale_uint(bri_in, 0, 254, 0, 360)
+        var bri = tasmota.scale_uint(bri_in, 0, 254, 0, 255)
         light.set({'bri': bri})
         self.update_shadow()
+        ctx.log = "bri:"+str(bri_in)
         return true
       elif command == 0x0001            # ---------- Move ----------
         # TODO, we don't really support it
@@ -238,10 +239,11 @@ class Matter_Plugin_Light3 : Matter_Plugin
         return true
       elif command == 0x0004            # ---------- MoveToLevelWithOnOff ----------
         var bri_in = val.findsubval(0)  # Hue 0..254
-        var bri = tasmota.scale_uint(bri_in, 0, 254, 0, 360)
+        var bri = tasmota.scale_uint(bri_in, 0, 254, 0, 255)
         var onoff = bri > 0
         light.set({'bri': bri, 'power': onoff})
         self.update_shadow()
+        ctx.log = "bri:"+str(bri_in)
         return true
       elif command == 0x0005            # ---------- MoveWithOnOff ----------
         # TODO, we don't really support it
@@ -260,6 +262,7 @@ class Matter_Plugin_Light3 : Matter_Plugin
         var hue = tasmota.scale_uint(hue_in, 0, 254, 0, 360)
         light.set({'hue': hue})
         self.update_shadow()
+        ctx.log = "hue:"+str(hue_in)
         return true
       elif command == 0x0001            # ---------- MoveHue ----------
         # TODO, we don't really support it
@@ -272,6 +275,7 @@ class Matter_Plugin_Light3 : Matter_Plugin
         var sat = tasmota.scale_uint(sat_in, 0, 254, 0, 255)
         light.set({'sat': sat})
         self.update_shadow()
+        ctx.log = "sat:"+str(sat_in)
         return true
       elif command == 0x0004            # ---------- MoveSaturation ----------
         # TODO, we don't really support it
@@ -286,18 +290,14 @@ class Matter_Plugin_Light3 : Matter_Plugin
         var sat = tasmota.scale_uint(sat_in, 0, 254, 0, 255)
         light.set({'hue': hue, 'sat': sat})
         self.update_shadow()
+        ctx.log = "hue:"+str(hue_in)+" sat:"+str(sat_in)
         return true
       elif command == 0x0047            # ---------- StopMoveStep ----------
         # TODO, we don't really support it
         return true
       end
     end
-  end
 
-  #############################################################
-  # Signal that onoff attribute changed
-  def onoff_changed()
-    self.attribute_updated(nil, 0x0006, 0x0000)   # send to all endpoints
   end
 
   #############################################################
