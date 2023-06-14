@@ -27,8 +27,8 @@ class Matter_Plugin_Device end
 #@ solidify:Matter_Plugin_Sensor_Contact,weak
 
 class Matter_Plugin_Sensor_Contact : Matter_Plugin_Device
-  static var TYPE = "contact"                     # name of the plug-in in json
-  static var NAME = "Contact"                     # display name of the plug-in
+  static var TYPE = "contact"                       # name of the plug-in in json
+  static var NAME = "Contact"                       # display name of the plug-in
   static var ARG  = "switch"                        # additional argument name (or empty if none)
   static var ARG_HINT = "Enter Switch<x> number"
   static var ARG_TYPE = / x -> int(x)               # function to convert argument to the right type
@@ -46,7 +46,7 @@ class Matter_Plugin_Sensor_Contact : Matter_Plugin_Device
   #
   # Parse configuration map
   def parse_configuration(config)
-    self.tasmota_switch_index = int(config.find(self.ARG #-'relay'-#, 1))
+    self.tasmota_switch_index = int(config.find(self.ARG #-'switch'-#, 1))
     if self.tasmota_switch_index <= 0    self.tasmota_switch_index = 1    end
   end
 
