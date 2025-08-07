@@ -20,15 +20,12 @@ import datetime
 import re
 import pprint
 import json
-import shutil
 import subprocess
 import sys
 import shlex
-import atexit
 from pathlib import Path
 from platformio.builder.tools.piolib import LibBuilderBase
 from platformio.builder.tools.piobuild import SRC_HEADER_EXT, SRC_C_EXT, SRC_CXX_EXT, SRC_ASM_EXT, SRC_BUILD_EXT
-from SCons.Script import COMMAND_LINE_TARGETS
 from dataclasses import dataclass
 from typing import Optional
 
@@ -55,6 +52,19 @@ if config.has_option("env:"+env["PIOENV"], "custom_sdkconfig") or env.BoardConfi
 
 # Ensure log directory exists
 logfile_path.parent.mkdir(parents=True, exist_ok=True)
+
+def set_lib_ldf_mode_off():
+    """
+    Set lib_ldf_mode = off using PlatformIO's project configuration API.
+    
+    This function directly modifies the project configuration without
+    touching the platformio.ini file.
+    """
+    projectconfig = env.GetProjectConfig()
+    env_section = "env:" + env["PIOENV"]
+    if not projectconfig.has_section(env_section):
+        projectconfig.add_section(env_section)
+    projectconfig.set(env_section, "lib_ldf_mode", "off")
 
 def is_first_run_needed():
     """
@@ -117,13 +127,19 @@ def should_trigger_verbose_build():
     if cache_file.exists():
         return False
 
-    # Only trigger for build-related targets
-    current_targets = COMMAND_LINE_TARGETS[:]
-    is_build_target = (
-        not current_targets or
-        any(target in ["build", "buildprog"] for target in current_targets)
-    )
-    if not is_build_target:
+    # Debug: Print all sys.argv values
+#    print(f"Debug - sys.argv values: {sys.argv}")
+#    for i, arg in enumerate(sys.argv):
+#        print(f"  sys.argv[{i}]: {arg}")
+
+    # Check sys.argv for "clean" target
+    if any("clean" in str(arg).lower() for arg in sys.argv):
+        return False
+
+    if any("nobuild" in str(arg).lower() for arg in sys.argv):
+        return False
+
+    if any("erase" in str(arg).lower() for arg in sys.argv):
         return False
 
     return is_first_run_needed()
@@ -343,7 +359,7 @@ class LDFCacheOptimizer:
     results to significantly speed up subsequent builds.
     
     The optimizer works in two phases:
-    1. First run: Collects dependencies, creates cache, modifies platformio.ini
+    1. First run: Collects dependencies, creates cache
     2. Second run: Applies cached dependencies with lib_ldf_mode=off
     
     Attributes:
@@ -364,10 +380,10 @@ class LDFCacheOptimizer:
 
     # Directories to ignore during file scanning (optimized for ESP/Tasmota projects)
     IGNORE_DIRS = frozenset([
-        '.git', '.github', '.cache', '.vscode', '.pio', 'boards',
-        'data', 'build', 'pio-tools', 'tools', '__pycache__', 'variants',
-        'berry', 'berry_tasmota', 'berry_matter', 'berry_custom',
-        'berry_animate', 'berry_mapping', 'berry_int64', 'displaydesc',
+        '.git', '.github', '.cache', '.vscode', '.pio', 'api', 'boards', 'info',
+        'data', 'build', 'build_output', 'pio-tools', 'tools', '__pycache__', 'variants',
+        'partitions', 'berry', 'berry_tasmota', 'berry_matter', 'berry_custom', 'zigbee',
+        'berry_animate', 'berry_mapping', 'berry_int64', 'displaydesc', 'language',
         'html_compressed', 'html_uncompressed', 'language', 'energy_modbus_configs'
     ])
 
@@ -390,9 +406,6 @@ class LDFCacheOptimizer:
         # Setup cache and backup file paths
         cache_base = Path(self.project_dir) / ".pio" / "ldf_cache"
         self.cache_file = cache_base / f"ldf_cache_{self.env_name}.py"
-        self.ldf_cache_ini = Path(self.project_dir) / "ldf_cache.ini"
-        self.platformio_ini = Path(self.project_dir) / "platformio.ini"
-        self.platformio_ini_backup = Path(self.project_dir) / ".pio" / "platformio_backup.ini"
 
         # Setup compile database paths
         compiledb_base = Path(self.project_dir) / ".pio" / "compiledb"
@@ -420,9 +433,6 @@ class LDFCacheOptimizer:
         """
         self._cache_applied_successfully = False
 
-        # Register exit handler for cleanup
-        self.register_exit_handler()
-
         try:
             # Load and validate cache data
             cache_data = self.load_cache()
@@ -430,6 +440,8 @@ class LDFCacheOptimizer:
                 # Apply cached dependencies to build environment
                 success = self.apply_ldf_cache_with_build_order(cache_data)
                 if success:
+                    # Set lib_ldf_mode = off using the new function
+                    set_lib_ldf_mode_off()
                     self._cache_applied_successfully = True
                     print("✅ Cache applied successfully - lib_ldf_mode=off")
                     #print(f"  CPPPATH: {len(self.env.get('CPPPATH', []))} entries")
@@ -443,12 +455,6 @@ class LDFCacheOptimizer:
         except Exception as e:
             print(f"❌ Error in second run: {e}")
             self._cache_applied_successfully = False
-    
-        finally:
-            # Handle cleanup based on success/failure
-            if not self._cache_applied_successfully:
-                print("🔄 Restoring original platformio.ini due to cache failure")
-                self.restore_platformio_ini()
 
     def apply_ldf_cache_with_build_order(self, cache_data):
         """
@@ -487,105 +493,6 @@ class LDFCacheOptimizer:
             import traceback
             traceback.print_exc()
             return False
-
-    def register_exit_handler(self):
-        """
-        Register exit handler for conditional platformio.ini restoration.
-        
-        Ensures platformio.ini is restored to original state if cache
-        application fails or script exits unexpectedly.
-        """
-        def cleanup_on_exit():
-            """
-            Cleanup function called on script exit.
-            
-            Restores platformio.ini if cache was not successfully applied.
-            """
-            try:
-                if hasattr(self, '_cache_applied_successfully'):
-                    if not self._cache_applied_successfully:
-                        self.restore_platformio_ini()
-                else:
-                    self.restore_platformio_ini()
-            except:
-                # Silently handle cleanup errors to avoid exit issues
-                pass
-        
-        atexit.register(cleanup_on_exit)
-
-    def modify_platformio_ini_for_second_run(self):
-        """
-        Modify platformio.ini for second run by setting lib_ldf_mode = off.
-        
-        Creates backup and modifies platformio.ini to disable LDF for subsequent
-        builds that will use cached dependencies.
-        
-        Returns:
-            bool: True if modification was successful or not needed
-        """
-        try:
-            # Check if platformio.ini exists
-            if not self.platformio_ini.exists():
-                print("❌ platformio.ini not found")
-                return False
-                
-            # Create backup if it doesn't exist
-            if not self.platformio_ini_backup.exists():
-                shutil.copy2(self.platformio_ini, self.platformio_ini_backup)
-                print(f"✅ Configuration backup created: {self.platformio_ini_backup.name}")
-                
-            # Read current platformio.ini content
-            with self.platformio_ini.open('r', encoding='utf-8') as f:
-                lines = f.readlines()
-        
-            # Find and modify lib_ldf_mode line
-            modified = False
-            for i, line in enumerate(lines):
-                stripped_line = line.strip()
-                if stripped_line.startswith('lib_ldf_mode'):
-                    lines[i] = 'lib_ldf_mode = off ; LDF cache modified. To restore change to: lib_ldf_mode                = chain\n'
-                    modified = True
-                    break
-
-            # Write modified content or report no changes needed
-            if modified:
-                with self.platformio_ini.open('w', encoding='utf-8') as f:
-                    f.writelines(lines)
-                print("✅ platformio.ini successfully modified")
-                return True
-            else:
-                print("ℹ No lib_ldf_mode entry found, no changes made")
-                return True
-                
-        except Exception as e:
-            print(f"❌ Error modifying platformio.ini: {e}")
-            return False
-
-    @staticmethod
-    def restore_platformio_ini(project_dir=None):
-        """
-        Restore original platformio.ini from backup.
-        
-        Restores platformio.ini to its original state using the backup
-        created during first run.
-        
-        Returns:
-            bool: True if restoration was successful
-        """
-        if project_dir is None:
-            project_dir = env.subst("$PROJECT_DIR") if 'env' in globals() else "."
-    
-        platformio_ini = Path(project_dir) / "platformio.ini"
-        platformio_ini_backup = Path(project_dir) / ".pio" / "platformio_backup.ini"
-    
-        try:
-            if platformio_ini_backup.exists():
-                platformio_ini_backup.rename(platformio_ini)
-                print("✅ platformio.ini restored from backup")
-            else:
-                print("💡 No backup found - platformio.ini not modified")
-        except Exception as e:
-            print(f"⚠ Error restoring platformio.ini: {e}")
 
     def validate_ldf_mode_compatibility(self):
         """
@@ -787,17 +694,12 @@ class LDFCacheOptimizer:
                     object_paths.append(str(file_path))
 
         total_count = len(library_paths) + len(object_paths)
-    
-        #print(f"📦 Collected {len(library_paths)} library paths (*.a)")
-        #print(f"📦 Collected {len(object_paths)} object paths (*.o)")
-        #print(f"📦 Total: {total_count} artifact paths collected")
 
         return {
             'library_paths': library_paths,
             'object_paths': object_paths,
             'total_count': total_count
         }
-
 
     def get_project_hash_with_details(self):
         """
@@ -848,7 +750,7 @@ class LDFCacheOptimizer:
         for ini_path in project_path.glob('platformio*.ini'):
             if ini_path.exists() and ini_path.is_file():
                 try:
-                    platformio_hash = self._hash_platformio_ini_selective(ini_path)
+                    platformio_hash = self._hash_platformio_ini(ini_path)
                     if platformio_hash:
                         rel_ini_path = self._get_relative_path_from_project(ini_path)
                         file_hashes[rel_ini_path] = platformio_hash
@@ -1065,7 +967,6 @@ class LDFCacheOptimizer:
             
                 if object_file_paths:
                     self.env.Replace(OBJECTS=object_file_paths)
-                    self._apply_correct_linker_order(object_file_paths)
                 else:
                     print("⚠ No valid object files found")
 
@@ -1152,66 +1053,6 @@ class LDFCacheOptimizer:
             traceback.print_exc()
             return False
 
-    def _apply_correct_linker_order(self, object_files):
-        """
-        Apply correct linker order for symbol resolution.
-        
-        Configures linker with optimized flags and proper grouping
-        to ensure correct symbol resolution and garbage collection.
-        
-        Args:
-            object_files: List of object file paths
-        """
-        try:
-            current_linkflags = self.env.get('LINKFLAGS', [])
-
-            # Configure custom linker command for better control
-            custom_linkcom = (
-                "$LINK -o $TARGET "
-                "${_long_sources_hook(__env__, SOURCES)} "
-                "$LINKFLAGS "
-                "$__RPATH $_LIBDIRFLAGS $_LIBFLAGS"
-            )
-
-            self.env.Replace(LINKCOM=custom_linkcom)
-
-            # Build optimized linker flags
-            optimized_linkflags = []
-            optimized_linkflags.extend(["-Wl,--start-group"])
-
-            # Add existing flags without duplicates
-            for flag in current_linkflags:
-                if flag not in optimized_linkflags:
-                    optimized_linkflags.append(flag)
-
-            # Add optimization flags
-            optimized_linkflags.extend([
-                "-Wl,--end-group",
-                "-Wl,--gc-sections",
-            ])
-
-            self.env.Replace(LINKFLAGS=optimized_linkflags)
-
-        except Exception as e:
-            print(f"⚠ Warning during linker optimization: {e}")
-
-    def is_file_cached(self, file_path):
-        """
-        Check if file is present in cache.
-        
-        Args:
-            file_path: Path to file to check
-            
-        Returns:
-            bool: True if file is in cache
-        """
-        cache_data = self.load_cache()
-        if not cache_data:
-            return False
-
-        rel_path = self._get_relative_path_from_project(file_path)
-        return rel_path in cache_data.get('file_hashes', {})
-
     def _get_relative_path_from_project(self, file_path):
         """
         Calculate relative path from project root with consistent path handling.
@@ -1261,48 +1102,30 @@ class LDFCacheOptimizer:
             print(f"⚠ Could not read {file_path}: {e}")
         return includes
 
-    def _hash_platformio_ini_selective(self, ini_path=None):
+    def _hash_platformio_ini(self, ini_path=None):
         """
-        Hash platformio.ini excluding LDF-related lines modified by script.
-        
-        Creates hash of platformio.ini while excluding lines that are
-        modified by this script to avoid cache invalidation loops.
-        
+        Hash the complete platformio.ini file
+
+        Creates hash of the entire platformio.ini content to detect any changes
+        that might affect the build configuration.
+    
         Args:
-            ini_path: Path to ini file (defaults to self.platformio_ini)
-            
+        ini_path: Path to ini file (defaults to self.platformio_ini)
+        
         Returns:
-            str: MD5 hash of relevant platformio.ini content
+            str: MD5 hash of the entire platformio.ini content
         """
         if ini_path is None:
             ini_path = self.platformio_ini
         if not ini_path.exists():
             return ""
-            
-        # Lines to exclude from hashing (modified by this script)
-        excluded_patterns = ['lib_ldf_mode']
-        
+
         try:
-            relevant_lines = []
             with ini_path.open('r', encoding='utf-8') as f:
-                for line in f:
-                    line_stripped = line.strip()
-                    
-                    # Skip empty lines and comments
-                    if not line_stripped or line_stripped.startswith(';') or line_stripped.startswith('#'):
-                        continue
-                        
-                    # Skip excluded patterns
-                    should_exclude = any(
-                        pattern.lower() in line_stripped.lower() 
-                        for pattern in excluded_patterns
-                    )
-                    if not should_exclude:
-                        relevant_lines.append(line_stripped)
-                        
-            # Create deterministic hash from sorted lines
-            relevant_content = '\n'.join(sorted(relevant_lines))
-            return hashlib.md5(relevant_content.encode()).hexdigest()
+                content = f.read()
+        
+        # Hash entire content as is
+            return hashlib.md5(content.encode()).hexdigest()
         except (IOError, OSError) as e:
             print(f"⚠ Could not read {ini_path}: {e}")
             return ""
@@ -1333,43 +1156,6 @@ class LDFCacheOptimizer:
         for part in path_obj.parts:
             if part in self.IGNORE_DIRS:
                 return True
-        return False
-
-def modify_platformio_ini_for_second_run(self):
-    """
-    Einfache Modifikation: Suche lib_ldf_mode und ersetze durch lib_ldf_mode = off
-    Wenn kein Eintrag vorhanden, nichts ändern.
-    Returns:
-        bool: True if modification was successful or not needed
-    """
-    try:
-        if not self.platformio_ini.exists():
-            print("❌ platformio.ini not found")
-            return False
-
-        if not self.platformio_ini_backup.exists():
-            shutil.copy2(self.platformio_ini, self.platformio_ini_backup)
-
-        with self.platformio_ini.open('r', encoding='utf-8') as f:
-            lines = f.readlines()
-
-        modified = False
-        for i, line in enumerate(lines):
-            if line.strip().startswith('lib_ldf_mode'):
-                lines[i] = 'lib_ldf_mode = off\n'
-                modified = True
-                break
-
-        if modified:
-            with self.platformio_ini.open('w', encoding='utf-8') as f:
-                f.writelines(lines)
-            return True
-        else:
-            print("ℹ No lib_ldf_mode entry found, no changes made")
-            return True
-
-    except Exception as e:
-        print(f"❌ Error modifying platformio.ini: {e}")
         return False
 
 def execute_first_run_post_actions():
@@ -1415,24 +1201,12 @@ def execute_first_run_post_actions():
         else:
             print(f"✅ LDF cache already exists: {cache_file}")
 
-        # Validate LDF mode compatibility
-        optimizer.validate_ldf_mode_compatibility()
-
-        # Check current LDF mode and modify platformio.ini if needed
+        # Check current LDF mode
         current_ldf_mode = optimizer.env.GetProjectOption("lib_ldf_mode", "chain")
-        print(f"🔍 Current lib_ldf_mode: {current_ldf_mode}")
-        
-        if current_ldf_mode.lower() in ["chain", "off"]:
-            print("🔧 Modifying platformio.ini for second run...")
-            success_ini_mod = optimizer.modify_platformio_ini_for_second_run()
-            if success_ini_mod:
-                print("🎉 First run post-build actions completed successfully!")
-                print("🔄 platformio.ini configured for cached build (lib_ldf_mode = off)")
-                print("🚀 Next build will be using cached dependencies")
-            else:
-                print("⚠ Cache created but platformio.ini modification failed")
-                print("💡 Manual setting: lib_ldf_mode = off recommended for next build")
-                return False
+
+        if optimizer.validate_ldf_mode_compatibility():
+            print("🎉 First run post-build actions completed successfully!")
+            print("🚀 Next build will be using cached dependencies")
         else:
             print(f"⚠ lib_ldf_mode '{current_ldf_mode}' not supported for caching")
             print("💡 Supported modes: chain, off")
@@ -1445,6 +1219,25 @@ def execute_first_run_post_actions():
         import traceback
         traceback.print_exc()
         return False
+
+def terminal_size():
+    """
+    Get terminal width and lines from stty size command.
+    VSC does not provide an easy way to get terminal width.
+    Returns:
+        tuple: (columns, lines) if available, otherwise (80, 16)
+    """
+    try:
+        result = subprocess.run(['stty', 'size'], capture_output=True, text=True, timeout=2)
+        if result.returncode == 0:
+            parts = result.stdout.strip().split()
+            if len(parts) >= 2 and parts[0].isdigit() and parts[1].isdigit():
+                lines = int(parts[0])
+                columns = int(parts[1])
+                return columns, lines
+    except (subprocess.TimeoutExpired, subprocess.SubprocessError, FileNotFoundError):
+        pass
+    return 80, 16
 
 # FIRST RUN LOGIC - Execute verbose build and create cache
 if should_trigger_verbose_build() and not github_actions and not flag_custom_sdkconfig:
@@ -1465,7 +1258,10 @@ if should_trigger_verbose_build() and not github_actions and not flag_custom_sdk
     env_vars = os.environ.copy()
     env_vars['PLATFORMIO_SETTING_FORCE_VERBOSE'] = 'true'
     env_vars['_PIO_RECURSIVE_CALL'] = 'true'
-    
+
+    terminal_columns, terminal_lines = terminal_size()
+    terminal_width = terminal_columns - 3 # Adjust for emoji and padding
+
     # Handle recursive call return codes
     if os.environ.get('_PIO_REC_CALL_RETURN_CODE') is not None:
         sys.exit(int(os.environ.get('_PIO_REC_CALL_RETURN_CODE')))
@@ -1482,10 +1278,13 @@ if should_trigger_verbose_build() and not github_actions and not flag_custom_sdk
         )
         print(f"🔄 Running verbose build... full log in {logfile_path}")
         for line in process.stdout:
-            print("🔄 " + line[:120].splitlines()[0], end='\r')
+            print("🔄 " + line[:terminal_width].splitlines()[0], end='\r')
             sys.stdout.write("\033[F")
             logfile.write(line)
             logfile.flush()
+        sys.stdout.write("\x1b[2K")
+        sys.stdout.write("\033[F")
+        logfile.flush()
         print("\n✅ Build process completed, waiting for process to finish...")
         process.wait()
 
@@ -1497,11 +1296,10 @@ if should_trigger_verbose_build() and not github_actions and not flag_custom_sdk
             print("⚠ Some first run actions failed")
     else:
         print(f"❌ First run failed with return code: {process.returncode}")
-        LDFCacheOptimizer.restore_platformio_ini()
 
     sys.exit(process.returncode)
 
-# SECOND RUN LOGIC (wird nur erreicht wenn First Run nicht stattfand)
+# SECOND RUN LOGIC
 try:
     if (not should_trigger_verbose_build() and
         is_build_environment_ready()):
