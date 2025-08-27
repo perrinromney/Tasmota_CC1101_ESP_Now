@@ -18,7 +18,7 @@ red_eye_.color = 0xFFFF0000
 red_eye_.pos = (def (engine)
   var provider = animation.cosine_osc(engine)
   provider.min_value = 0
-  provider.max_value = animation.create_closure_value(engine, def (self, param_name, time_ms) return (self.resolve(strip_len_, param_name, time_ms) - 2) end)
+  provider.max_value = animation.create_closure_value(engine, def (self) return self.resolve(strip_len_) - 2 end)
   provider.duration = 5000
   return provider
 end)(engine)
