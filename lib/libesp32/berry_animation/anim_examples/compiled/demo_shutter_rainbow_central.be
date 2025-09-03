@@ -15,7 +15,7 @@ var engine = animation.init_strip()
 # Template function: shutter_central
 def shutter_central_template(engine, colors_, duration_)
   var strip_len_ = animation.strip_length(engine)
-  var strip_len2_ = animation.create_closure_value(engine, def (engine) return (animation.strip_length(engine) + 1) / 2 end)
+  var strip_len2_ = animation.create_closure_value(engine, def (engine) return (animation.resolve(strip_len_) + 1) / 2 end)
   var shutter_size_ = (def (engine)
     var provider = animation.sawtooth(engine)
     provider.min_value = 0
@@ -71,7 +71,7 @@ template shutter_central {
     param duration
   
     set strip_len = strip_length()
-    set strip_len2 = (strip_length() + 1) / 2
+    set strip_len2 = (strip_len + 1) / 2
     set shutter_size = sawtooth(min_value = 0, max_value = strip_len, duration = duration)
   
     color col1 = color_cycle(palette=colors, cycle_period=0)
