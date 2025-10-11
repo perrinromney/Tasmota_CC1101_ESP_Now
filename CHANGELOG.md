@@ -3,6 +3,102 @@ All notable changes to this project will be documented in this file.
 
 ## [Released]
 
+## [15.1.0]
+- Release Stella
+
+## [15.0.1.5] 20251011
+### Changed
+- ESP8266 platform update from 2025.09.00 to 2025.10.00 (#23971)
+- ESP32 Platform from 2025.09.30 to 2025.10.30, Framework (Arduino Core) from v3.1.3.250808 to v3.1.4 and IDF from v5.3.3.250801 to v5.3.4.250826 (#23971)
+- Extension Manager show current version in UI (#23995)
+
+### Fixed
+- Berry fixed 'be_top is non zero' warning when calling C mapped functions (#23989)
+- Berry fixed 'be_top is non zero' when `Br` command fails (#23990)
+
+## [15.0.1.4] 20251002
+### Added
+- ESP32 Extension Manager, replacing loading of Partition Wizard (#23955)
+- Berry animation framework web ui to compile DSL (#23962)
+
+### Changed
+- ESP32 Platform from 2025.08.30 to 2025.09.30, Framework (Arduino Core) from v3.1.3.250808 to v3.1.4 and IDF from v5.3.3.250801 to v5.3.4.250826 (#23888)
+- Use HAL instead of ROM for SHA HW acceleration as used by TLS (#23902)
+- Berry add argument to `werbserver.content_send_style` (#23953)
+- Make GUI Timer parameters mobile phone friendly (#23959)
+
+## [15.0.1.3] 20250908
+### Added
+- ESP32 ROM SHA Hardware Acceleration to BearSSL (#23819)
+- Extend state JSON message with functional hostname and ipaddress which could be WiFi or Ethernet
+- Berry multiplication between string and int (#23850)
+- Support for RX8030 RTC (#23855)
+
+### Breaking Changed
+- Berry `animate` framework is DEPRECATED, will be replace by `animation` framework (#23854)
+
+### Changed
+- ESP32 Platform from 2025.07.31 to 2025.08.30, Framework (Arduino Core) from v3.1.3.250712 to v3.1.3.250808 and IDF from v5.3.3.250707 to v5.3.3.250801 (#23778)
+- Epdiy library from v1.0.0 to v2.0.0
+- ESP8266 platform update from 2025.07.00 to 2025.08.00 (#23801)
+- Support for ESP32-C5 (#23804)
+- Berry update of preview of animation framework (#23816)
+- ESP8266 platform update from 2025.08.00 to 2025.09.00 (#23801)
+- JPEGDEC library from v1.5.0 to v1.8.3 (#23883)
+- Web UI styles and HTML syntax (#23847)
+
+### Fixed
+- Syslog RFC5424 compliance (#23509)
+- Berry calling `setmember` with a function (#23825)
+- Unable to use default serial GPIOs by TasmotaSerial regression from v14.5.0 with IDF 5.3.2.250120 (#23775)
+
+### Removed
+- `user-scalable=no` from HTTP HEADER (#23798)
+
+## [15.0.1.2] 20250803
+### Added
+- Command `I2sPause` (#23646)
+- Basic support for ESP32-P4 (#23663)
+- ESP32-P4 command `HostedOta` (#23675)
+- Support for RV3028 RTC (#23672)
+- Berry preview of animation framework (#23740)
+- Berry `call()` now works for classes (#23744)
+
+### Changed
+- ESP32 Platform from 2025.05.30 to 2025.07.30, Framework (Arduino Core) from v3.1.3.250504 to v3.1.3.250707 and IDF from v5.3.3.250501 to v5.3.3.250707 (#23642)
+- Domoticz supports persistent settings for all relays, keys and switches when filesystem `#define USE_UFILESYS` is enabled
+- ESP32 Platform from 2025.07.30 to 2025.07.31, Framework (Arduino Core) from v3.1.3.250707 to v3.1.3.250712 and IDF from v5.3.3.250707 to v5.3.3.250707 (#23685)
+- ESP8266 platform update from 2025.05.00 to 2025.07.00 (#23700)
+- OpenTherm library from v0.9.0 to v1.1.5 (#23704)
+- Berry raise webserver hooks from 16 to 32 (#23748)
+
+### Fixed
+- NeoPool reset to default settings (#23734)
+
+## [15.0.1.1] 20250708
+### Added
+- I2S additions (#23543)
+- NeoPool add Redox tank alarm (#19811)
+- Berry f-strings now support ':' in expression (#23618)
+- Universal display driver for ZJY169S0800TG01 ST7789 280x240 (#23638)
+- Commands `LoRaWanDecoder "` and `LoRaWanName "` to clear name (#23394)
+- Internal function 'WSContentSendRaw_P' (#23641)
+
+### Changed
+- BLE updates for esp-nimble-cpp v2.x (#23553)
+- Library names (#23560)
+- ESP32 LoRaWan decoding won't duplicate non-decoded message if `SO147 0`
+- VEML6070 and AHT2x device detection (#23581)
+- CSS uses named colors variables (#23597)
+
+### Fixed
+- LVGL restore `lv_chart.set_range` removed in LVGL 9.3.0 in favor of `lv_chart.set_axis_range` (#23567)
+- Berry vulnerability in JSON parsing for unicode (#23603)
+- Berry security issues in `int64` and improve documentation (#23605)
+- Berry security issues in `berry_mapping` and improve documentation (#23606)
+- Berry Hue regression from #23429 (#23623)
+- AHT30 sensor start with null values after deep sleep (#23624)
+
 ## [15.0.1] 20250614
 - Release Sharon
 

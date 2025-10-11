@@ -333,6 +333,7 @@
 #define D_CMND_UPGRADE "Upgrade"
   #define D_JSON_ONE_OR_GT "1 or >%s to upgrade"
 #define D_CMND_OTAURL "OtaUrl"
+#define D_CMND_HOSTEDOTA "HostedOta"
 #define D_CMND_SERIALLOG "SerialLog"
 #define D_CMND_SYSLOG "SysLog"
 #define D_CMND_FILELOG "FileLog"
@@ -769,6 +770,7 @@
 #define D_CMND_SHUTTER_SETHALFWAY "SetHalfway"
 #define D_CMND_SHUTTER_SETCLOSE "SetClose"
 #define D_CMND_SHUTTER_SETOPEN "SetOpen"
+#define D_CMND_SHUTTER_SETPOSITION "SetPosition"
 #define D_CMND_SHUTTER_INVERT "Invert"
 #define D_CMND_SHUTTER_CLIBRATION "Calibration"
 #define D_CMND_SHUTTER_MOTORDELAY "MotorDelay"
@@ -852,6 +854,12 @@
 #define D_CMND_PIP_QED "QED"
 #define D_CMND_PIP_QEH "QEH"
 #define D_CMND_PIP_DAT "DAT"
+#define D_CMND_PIP_QMOD "QMOD"
+#define D_CMND_PIP_QPIWS "QPIWS"
+#define D_CMND_PIP_QPIRI "QPIRI"
+#define D_CMND_PIP_QPIGS "QPIGS"
+#define D_CMND_PIP_QFLAG "QFLAG"
+#define D_CMND_PIP_CUSTOM "CUSTOM"
 #define D_CMND_PIP_POLLVALUES "PollValues"
 #define D_CMND_PIP_BAUDRATE "BaudRate"
 #define D_CMND_PIP_SERIALCONFIG "SerialConfig"
@@ -971,8 +979,8 @@ const float kSpeedConversionFactor[] = {1,            // none
 // xdrv_02_webserver.ino
 #ifdef USE_WEBSERVER
 // {s} = <tr><th>, {m} = </th><td>, {e} = </td></tr>
-const char HTTP_SNS_HR[]            PROGMEM = "<tr><td colspan=2 style='font-size:2px'><hr/></td></tr>";
-const char HTTP_SNS_HR_THIN[]       PROGMEM = "<tr><td colspan=2 style='font-size:2px'><hr size=1/></td></tr>";
+const char HTTP_SNS_HR[]            PROGMEM = "<tr><td colspan=2 style='font-size:2px'><hr></td></tr>";
+const char HTTP_SNS_HR_THIN[]       PROGMEM = "<tr><td colspan=2 style='font-size:2px'><hr size=1></td></tr>";
 
 const char HTTP_SNS_F_TEMP[]        PROGMEM = "{s}%s "  D_TEMPERATURE         "{m}%*_f " D_UNIT_DEGREE          "%c{e}";
 const char HTTP_SNS_F_VOLTAGE[]     PROGMEM = "{s}%s "  D_VOLTAGE             "{m}%*_f " D_UNIT_VOLT              "{e}";

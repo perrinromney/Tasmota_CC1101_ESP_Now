@@ -58,6 +58,17 @@ const char be_berry_init_code[] =
   "do import autoconf end "
 #endif // USE_AUTOCONF
 
+#ifdef USE_EXTENSION_MANAGER
+  "do import extension_manager end "
+#endif
+
+#ifdef USE_BERRY_ANIMATION
+  "import animation "
+  #ifdef USE_BERRY_ANIMATION_DSL
+    "import animation_dsl "
+  #endif // USE_BERRY_ANIMATION_DSL
+#endif // USE_BERRY_ANIMATION
+
 #ifdef USE_LVGL
   "import lv "
   "import lv_tasmota "
@@ -79,6 +90,10 @@ const char be_berry_init_code[] =
 #ifdef USE_LIGHT
   "import light "
 #endif // USE_LIGHT
+
+#if defined(USE_EMULATION) && defined(USE_EMULATION_HUE)
+  "import hue_bridge "
+#endif
 
   "do import tapp end "     // we don't need to keep `tapp` in the global namespace
 

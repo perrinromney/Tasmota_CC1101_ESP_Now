@@ -128,7 +128,7 @@ print("".join(pin))
 #define USE_EQ3_ESP32
 #endif
 
-#if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32C2 || CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32S3
+#if CONFIG_IDF_TARGET_ESP32 || CONFIG_IDF_TARGET_ESP32C2 || CONFIG_IDF_TARGET_ESP32C3 || CONFIG_IDF_TARGET_ESP32C5 || CONFIG_IDF_TARGET_ESP32C6 || CONFIG_IDF_TARGET_ESP32S3
 #ifdef USE_EQ3_ESP32
 #ifdef ESP32                       // ESP32 only. Use define USE_HM10 for ESP8266 support
 #ifdef USE_BLE_ESP32
@@ -324,7 +324,7 @@ bool EQ3Operation(const uint8_t *MAC, const uint8_t *data, int datalen, int cmdt
 #endif
   }
 
-  NimBLEAddress addr((uint8_t *)MAC);
+  NimBLEAddress addr((uint8_t *)MAC,0); //type 0 is public
   op->addr = addr;
 
   bool havechar = false;
@@ -397,7 +397,7 @@ int EQ3ParseOp(BLE_ESP32::generic_sensor_t *op, bool success, int retries){
   ResponseClear();
 
   uint8_t addrev[7];
-  const uint8_t *native = op->addr.getNative();
+  const uint8_t *native = op->addr.getVal();
   memcpy(addrev, native, 6);
   BLE_ESP32::ReverseMAC(addrev);
 
@@ -594,7 +594,7 @@ int EQ3GenericOpCompleteFn(BLE_ESP32::generic_sensor_t *op){
 
   if (op->state <= GEN_STATE_FAILED){
     uint8_t addrev[7];
-    const uint8_t *native = op->addr.getNative();
+    const uint8_t *native = op->addr.getVal();
     memcpy(addrev, native, 6);
     BLE_ESP32::ReverseMAC(addrev);
 
@@ -804,7 +804,7 @@ const char *EQ3Names[] = {
 int TaskEQ3advertismentCallback(BLE_ESP32::ble_advertisment_t *pStruct)
 {
   // we will try not to use this...
-  BLEAdvertisedDevice *advertisedDevice = pStruct->advertisedDevice;
+  const BLEAdvertisedDevice *advertisedDevice = pStruct->advertisedDevice;
 
   std::string sname = advertisedDevice->getName();
 
@@ -845,8 +845,8 @@ int TaskEQ3advertismentCallback(BLE_ESP32::ble_advertisment_t *pStruct)
   if (BLE_ESP32::BLEDebugMode) AddLog(LOG_LEVEL_DEBUG, PSTR("EQ3: %s: saw device"),advertisedDevice->getAddress().toString().c_str());
 #endif
 
-  uint8_t* payload = advertisedDevice->getPayload();
-  size_t payloadlen = advertisedDevice->getPayloadLength();
+  uint8_t* payload = (uint8_t *)advertisedDevice->getPayload().data();
+  size_t payloadlen = advertisedDevice->getPayload().size();
 
   char name[20] = {0};
   char serial[20] = {0};

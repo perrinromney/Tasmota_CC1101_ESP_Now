@@ -8,6 +8,7 @@ on:
     paths-ignore:
     - '.github/**'        # Ignore changes towards the .github directory
     - '**.md'             # Do no build if *.md files changes
+    - 'tasmota/berry/**'  # Ignore Berry examples
 
 # Ensures that only one deploy task per branch/environment will run at a time.
 concurrency:
@@ -89,15 +90,19 @@ jobs:
         variant:
           - tasmota32-safeboot
           - tasmota32solo1-safeboot
-          - tasmota32c2-safeboot
-          - tasmota32c3-safeboot
-          - tasmota32c3ser-safeboot
           - tasmota32s2-safeboot
           - tasmota32s2cdc-safeboot
           - tasmota32s3-safeboot
           - tasmota32s3ser-safeboot
+          - tasmota32c2-safeboot
+          - tasmota32c3-safeboot
+          - tasmota32c3ser-safeboot
+          - tasmota32c5-safeboot
+          - tasmota32c5ser-safeboot
           - tasmota32c6-safeboot
           - tasmota32c6ser-safeboot
+          - tasmota32p4-safeboot
+          - tasmota32p4ser-safeboot
     steps:
       - uses: actions/checkout@v4
         with:
@@ -106,10 +111,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          enable-cache: false
       - name: Install dependencies
         run: |
-          pip install wheel
-          pip install -U platformio
+          uv pip install --system platformio
           cp ./platformio_override_sample.ini ./platformio_override.ini
       - name: Add SHA to footer
         run: |
@@ -156,10 +165,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          enable-cache: false
       - name: Install dependencies
         run: |
-          pip install wheel
-          pip install -U platformio
+          uv pip install --system platformio
       - name: Add SHA to footer
         run: |
           COMMIT_SHA_LONG=$(git rev-parse --short HEAD || echo "")
@@ -194,7 +207,9 @@ jobs:
           - tasmota32-lvgl
           - tasmota32c2
           - tasmota32c3
+          - tasmota32c5
           - tasmota32c6
+          - tasmota32p4
           - tasmota32s2
           - tasmota32s2cdc
           - tasmota32s3
@@ -207,10 +222,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          enable-cache: false
       - name: Install dependencies
         run: |
-          pip install wheel
-          pip install -U platformio
+          uv pip install --system platformio
           cp ./platformio_override_sample.ini ./platformio_override.ini
       - name: Download safeboot firmwares
         uses: actions/download-artifact@v4
@@ -254,10 +273,14 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.13'
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          version: "latest"
+          enable-cache: false
       - name: Install dependencies
         run: |
-          pip install wheel
-          pip install -U platformio
+          uv pip install --system platformio
           cp ./platformio_override_sample.ini ./platformio_override.ini
       - name: Download safeboot firmwares
         uses: actions/download-artifact@v4
