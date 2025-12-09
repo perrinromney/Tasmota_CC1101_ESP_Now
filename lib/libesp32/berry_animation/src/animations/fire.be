@@ -14,7 +14,7 @@ class FireAnimation : animation.animation
   var random_seed      # Seed for random number generation
   
   # Parameter definitions following parameterized class specification
-  static var PARAMS = encode_constraints({
+  static var PARAMS = animation.enc_params({
     # 'color' for the comet head (32-bit ARGB value), inherited from animation class
     "intensity": {"min": 0, "max": 255, "default": 180},
     "flicker_speed": {"min": 1, "max": 20, "default": 8},
@@ -41,7 +41,7 @@ class FireAnimation : animation.animation
   
   # Initialize buffers based on current strip length
   def _initialize_buffers()
-    var strip_length = self.engine.get_strip_length()
+    var strip_length = self.engine.strip_length
     
     # Create new bytes() buffer for heat values (1 byte per pixel)
     self.heat_map.clear()
@@ -77,16 +77,7 @@ class FireAnimation : animation.animation
   # Update animation state based on current time
   #
   # @param time_ms: int - Current time in milliseconds
-  # @return bool - True if animation is still running, false if completed
   def update(time_ms)
-    # Call parent update method first
-    if !super(self).update(time_ms)
-      return false
-    end
-    
-    # Auto-fix time_ms and start_time
-    time_ms = self._fix_time_ms(time_ms)
-    
     # Check if it's time to update the fire simulation
     # Update frequency is based on flicker_speed (Hz)
     var flicker_speed = self.flicker_speed  # Cache parameter value
@@ -95,8 +86,6 @@ class FireAnimation : animation.animation
       self.last_update = time_ms
       self._update_fire_simulation(time_ms)
     end
-    
-    return true
   end
   
   # Update the fire simulation
@@ -107,7 +96,7 @@ class FireAnimation : animation.animation
     var intensity = self.intensity
     var flicker_amount = self.flicker_amount
     var color_param = self.color
-    var strip_length = self.engine.get_strip_length()
+    var strip_length = self.engine.strip_length
     
     # Ensure buffers are correct size (bytes() uses .size() method)
     if self.heat_map.size() != strip_length || self.current_colors.size() != strip_length * 4
@@ -198,8 +187,6 @@ class FireAnimation : animation.animation
           fire_provider.cycle_period = 0  # Use value-based color mapping, not time-based
           fire_provider.transition_type = 1  # Use sine transition (smooth)
           fire_provider.brightness = 255
-          fire_provider.range_min = 0
-          fire_provider.range_max = 255
           resolved_color = fire_provider
         end
         
@@ -233,18 +220,10 @@ class FireAnimation : animation.animation
   # Render the fire to the provided frame buffer
   #
   # @param frame: FrameBuffer - The frame buffer to render to
-  # @param time_ms: int - Optional current time in milliseconds (defaults to engine time)
+  # @param time_ms: int - Current time in milliseconds
+  # @param strip_length: int - Length of the LED strip in pixels
   # @return bool - True if frame was modified, false otherwise
-  def render(frame, time_ms)
-    if !self.is_running || frame == nil
-      return false
-    end
-    
-    # Auto-fix time_ms and start_time
-    time_ms = self._fix_time_ms(time_ms)
-
-    var strip_length = self.engine.get_strip_length()
-    
+  def render(frame, time_ms, strip_length)
     # Render each pixel with its current color
     var i = 0
     while i < strip_length

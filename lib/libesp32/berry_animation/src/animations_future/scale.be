@@ -14,7 +14,7 @@ class ScaleAnimation : animation.animation
   var start_time         # Animation start time
   
   # Parameter definitions following parameterized class specification
-  static var PARAMS = encode_constraints({
+  static var PARAMS = animation.enc_params({
     "source_animation": {"type": "instance", "default": nil},
     "scale_factor": {"min": 1, "max": 255, "default": 128},
     "scale_speed": {"min": 0, "max": 255, "default": 0},
@@ -37,7 +37,7 @@ class ScaleAnimation : animation.animation
   
   # Initialize frame buffers based on current strip length
   def _initialize_buffers()
-    var current_strip_length = self.engine.get_strip_length()
+    var current_strip_length = self.engine.strip_length
     self.source_frame = animation.frame_buffer(current_strip_length)
     self.current_colors = []
     self.current_colors.resize(current_strip_length)
@@ -69,9 +69,7 @@ class ScaleAnimation : animation.animation
   
   # Update animation state
   def update(time_ms)
-    if !super(self).update(time_ms)
-      return false
-    end
+    super(self).update(time_ms)
 
     # Cache parameter values for performance
     var current_scale_speed = self.scale_speed
@@ -98,8 +96,6 @@ class ScaleAnimation : animation.animation
     
     # Calculate scaled colors
     self._calculate_scale()
-    
-    return true
   end
   
   # Calculate current scale factor based on mode
@@ -141,7 +137,7 @@ class ScaleAnimation : animation.animation
   # Calculate scaled colors for all pixels
   def _calculate_scale()
     # Get current strip length from engine
-    var current_strip_length = self.engine.get_strip_length()
+    var current_strip_length = self.engine.strip_length
     
     # Ensure buffers are properly sized
     if size(self.current_colors) != current_strip_length
@@ -235,17 +231,9 @@ class ScaleAnimation : animation.animation
   end
   
   # Render scale to frame buffer
-  def render(frame, time_ms)
-    if frame == nil
-      return false
-    end
-    
-    # Auto-fix time_ms and start_time
-    time_ms = self._fix_time_ms(time_ms)
-    
-    var current_strip_length = self.engine.get_strip_length()
+  def render(frame, time_ms, strip_length)
     var i = 0
-    while i < current_strip_length
+    while i < strip_length
       if i < frame.width
         frame.set_pixel_color(i, self.current_colors[i])
       end

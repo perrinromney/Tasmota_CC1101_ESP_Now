@@ -15,24 +15,19 @@ class RichPaletteAnimation : animation.animation
   var color_provider   # Internal RichPaletteColorProvider instance
   
   # Parameter definitions - only RichPaletteColorProvider parameters (Animation params inherited)
-  static var PARAMS = encode_constraints({
+  static var PARAMS = animation.enc_params({
     # RichPaletteColorProvider parameters (forwarded to internal provider)
     "palette": {"type": "instance", "default": nil},
     "cycle_period": {"min": 0, "default": 5000},
     "transition_type": {"enum": [animation.LINEAR, animation.SINE], "default": animation.SINE},
-    "brightness": {"min": 0, "max": 255, "default": 255},
-    "range_min": {"default": 0},
-    "range_max": {"default": 255}
+    "brightness": {"min": 0, "max": 255, "default": 255}
   })
-  
+    
   # Initialize a new RichPaletteAnimation
   #
   # @param engine: AnimationEngine - Reference to the animation engine (required)
   def init(engine)
     super(self).init(engine)  # Initialize Animation base class
-    
-    # Set default name (override inherited default)
-    self.name = "rich_palette"
     
     # Create internal RichPaletteColorProvider instance
     self.color_provider = animation.rich_palette(engine)
@@ -50,7 +45,7 @@ class RichPaletteAnimation : animation.animation
     super(self).on_param_changed(name, value)
     # Forward rich palette parameters to internal color provider
     if name == "palette" || name == "cycle_period" || name == "transition_type" || 
-       name == "brightness" || name == "range_min" || name == "range_max"
+       name == "brightness"
       # Set parameter on internal color provider
       self.color_provider.set_param(name, value)
     else
@@ -73,7 +68,7 @@ class RichPaletteAnimation : animation.animation
   # String representation
   def tostring()
     try
-      return f"RichPaletteAnimation({self.name}, cycle_period={self.cycle_period}, brightness={self.brightness})"
+      return f"RichPaletteAnimation(cycle_period={self.cycle_period}, brightness={self.brightness})"
     except ..
       return "RichPaletteAnimation(uninitialized)"
     end

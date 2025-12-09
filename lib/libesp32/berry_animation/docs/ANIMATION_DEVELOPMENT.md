@@ -38,18 +38,22 @@ class MyAnimation : animation.animation
     # Parameter validation is handled automatically by the framework
   end
   
-  def render(frame, time_ms)
+  # Update animation state (no return value needed)
+  def update(time_ms)
+    super(self).update(time_ms)
+    # Your update logic here
+  end
+  
+  def render(frame, time_ms, strip_length)
     if !self.is_running || frame == nil
       return false
     end
-    
-    # Auto-fix time_ms and start_time
-    time_ms = self._fix_time_ms(time_ms)
     
     # Use virtual parameter access - automatically resolves ValueProviders
     var param1 = self.my_param1
     var param2 = self.my_param2
     
+    # Use strip_length parameter instead of self.engine.strip_length for performance
     # Your rendering logic here
     # ...
     
@@ -153,20 +157,16 @@ end
 The virtual parameter system automatically resolves ValueProviders when you access parameters:
 
 ```berry
-def render(frame, time_ms)
-  # Use engine time if not provided
-  if time_ms == nil
-    time_ms = self.engine.time_ms
-  end
-  
+def render(frame, time_ms, strip_length)
   # Virtual parameter access automatically resolves ValueProviders
   var color = self.color      # Returns current color value, not the provider
   var position = self.pos     # Returns current position value
   var size = self.size        # Returns current size value
   
+  # Use strip_length parameter (computed once by engine_proxy) instead of self.engine.strip_length
   # Use resolved values in rendering logic
   for i: position..(position + size - 1)
-    if i >= 0 && i < frame.width
+    if i >= 0 && i < strip_length
       frame.set_pixel_color(i, color)
     end
   end
@@ -198,7 +198,7 @@ anim.pos = animation.triangle(0, 29, 3000)
 For performance-critical code, cache parameter values:
 
 ```berry
-def render(frame, time_ms)
+def render(frame, time_ms, strip_length)
   # Cache parameter values to avoid multiple virtual member access
   var current_color = self.color
   var current_pos = self.pos
@@ -206,7 +206,7 @@ def render(frame, time_ms)
   
   # Use cached values in loops
   for i: current_pos..(current_pos + current_size - 1)
-    if i >= 0 && i < frame.width
+    if i >= 0 && i < strip_length
       frame.set_pixel_color(i, current_color)
     end
   end
@@ -214,6 +214,125 @@ def render(frame, time_ms)
   return true
 end
 ```
+
+### Color Provider LUT Optimization
+
+For color providers that perform expensive color calculations (like palette interpolation), the base `ColorProvider` class provides a Lookup Table (LUT) mechanism for caching pre-computed colors:
+
+```berry
+#@ solidify:MyColorProvider,weak
+class MyColorProvider : animation.color_provider
+  # Instance variables (all should start with underscore)
+  var _cached_data    # Your custom cached data
+  
+  def init(engine)
+    super(self).init(engine)  # Initializes _color_lut and _lut_dirty
+    self._cached_data = nil
+  end
+  
+  # Mark LUT as dirty when parameters change
+  def on_param_changed(name, value)
+    super(self).on_param_changed(name, value)
+    if name == "palette" || name == "transition_type"
+      self._lut_dirty = true  # Inherited from ColorProvider
+    end
+  end
+  
+  # Rebuild LUT when needed
+  def _rebuild_color_lut()
+    # Allocate LUT (e.g., 129 entries * 4 bytes = 516 bytes)
+    if self._color_lut == nil
+      self._color_lut = bytes()
+      self._color_lut.resize(129 * 4)
+    end
+    
+    # Pre-compute colors for values 0, 2, 4, ..., 254, 255
+    var i = 0
+    while i < 128
+      var value = i * 2
+      var color = self._compute_color_expensive(value)
+      self._color_lut.set(i * 4, color, 4)
+      i += 1
+    end
+    
+    # Add final entry for value 255
+    var color_255 = self._compute_color_expensive(255)
+    self._color_lut.set(128 * 4, color_255, 4)
+    
+    self._lut_dirty = false
+  end
+  
+  # Update method checks if LUT needs rebuilding
+  def update(time_ms)
+    if self._lut_dirty || self._color_lut == nil
+      self._rebuild_color_lut()
+    end
+    return self.is_running
+  end
+  
+  # Fast color lookup using LUT
+  def get_color_for_value(value, time_ms)
+    # Build LUT if needed (lazy initialization)
+    if self._lut_dirty || self._color_lut == nil
+      self._rebuild_color_lut()
+    end
+    
+    # Map value to LUT index (divide by 2, special case for 255)
+    var lut_index = value >> 1
+    if value >= 255
+      lut_index = 128
+    end
+    
+    # Retrieve pre-computed color from LUT
+    var color = self._color_lut.get(lut_index * 4, 4)
+    
+    # Apply brightness scaling using static method (only if not 255)
+    var brightness = self.brightness
+    if brightness != 255
+      return animation.color_provider.apply_brightness(color, brightness)
+    end
+    
+    return color
+  end
+  
+  # Access LUT from outside (returns bytes() or nil)
+  # Inherited from ColorProvider: get_lut()
+end
+```
+
+**LUT Benefits:**
+- **5-10x speedup** for expensive color calculations
+- **Reduced CPU usage** during rendering
+- **Smooth animations** even with complex color logic
+- **Memory efficient** (typically 516 bytes for 129 entries)
+
+**When to use LUT:**
+- Palette interpolation with binary search
+- Complex color transformations
+- Brightness calculations
+- Any expensive per-pixel color computation
+
+**LUT Guidelines:**
+- Store colors at maximum brightness, apply scaling after lookup
+- Use 2-step resolution (0, 2, 4, ..., 254, 255) to save memory
+- Invalidate LUT when parameters affecting color calculation change
+- Don't invalidate for brightness changes if brightness is applied post-lookup
+
+**Brightness Handling:**
+
+The `ColorProvider` base class includes a `brightness` parameter (0-255, default 255) and a static method for applying brightness scaling:
+
+```berry
+# Static method for brightness scaling (only scales if brightness != 255)
+animation.color_provider.apply_brightness(color, brightness)
+```
+
+**Best Practices:**
+- Store LUT colors at maximum brightness (255)
+- Apply brightness scaling after LUT lookup using the static method
+- Only call the static method if `brightness != 255` to avoid unnecessary overhead
+- For inline performance-critical code, you can inline the brightness calculation instead of calling the static method
+- Brightness changes do NOT invalidate the LUT since brightness is applied after lookup
 
 ## Parameter Access
 
@@ -270,24 +389,17 @@ end
 ### Frame Buffer Operations
 
 ```berry
-def render(frame, time_ms)
+def render(frame, time_ms, strip_length)
   if !self.is_running || frame == nil
     return false
   end
-
-  # Auto-fix time_ms and start_time
-  time_ms = self._fix_time_ms(time_ms)
-  
-  # Get frame dimensions
-  var width = frame.width
-  var height = frame.height  # Usually 1 for LED strips
   
   # Resolve dynamic parameters
   var color = self.resolve_value(self.color, "color", time_ms)
   var opacity = self.resolve_value(self.opacity, "opacity", time_ms)
   
-  # Render your effect
-  for i: 0..(width-1)
+  # Render your effect using strip_length parameter
+  for i: 0..(strip_length-1)
     var pixel_color = calculate_pixel_color(i, time_ms)
     frame.set_pixel_color(i, pixel_color)
   end
@@ -368,19 +480,12 @@ class BeaconAnimation : animation.animation
   end
   
   # Render the pulse to the provided frame buffer
-  def render(frame, time_ms)
+  def render(frame, time_ms, strip_length)
     if frame == nil
       return false
     end
     
-    # Auto-fix time_ms and start_time
-    time_ms = self._fix_time_ms(time_ms)
-
-    if time_ms == nil
-      time_ms = self.engine.time_ms
-    end
-    
-    var pixel_size = frame.width
+    var pixel_size = strip_length
     # Use virtual parameter access - automatically resolves ValueProviders
     var back_color = self.back_color
     var pos = self.pos
@@ -517,7 +622,7 @@ def test_my_animation()
   # Test rendering
   var frame = animation.frame_buffer(10)
   anim.start()
-  var result = anim.render(frame, 1000)
+  var result = anim.render(frame, 1000, engine.strip_length)
   assert(result == true, "Should render successfully")
   
   print("✓ All tests passed")

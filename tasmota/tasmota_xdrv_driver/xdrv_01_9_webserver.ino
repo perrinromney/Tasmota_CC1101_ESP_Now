@@ -1926,30 +1926,34 @@ bool HandleRootStatusRefresh(void) {
 #ifdef USE_LIGHT
   uint16_t hue;
   uint8_t sat;
+  bool hue_bri_change = false;
   int current_value = -1;
   for (uint32_t i = 0; i < LST_MAX; i++) {
     if (Web.slider[i] != -1) {
       if (!Settings->flag3.pwm_multi_channels) {  // SetOption68 0 - Enable multi-channels PWM instead of Color PWM
-        if (0 == i) {
+        if (0 == i) {                // Cold / Warm
           current_value = LightGetColorTemp();
         }
-        else if (1 == i) {
+        else if (1 == i) {           // Hue
           LightGetHSB(&hue, &sat, nullptr);
           current_value = hue;
         }
-        else if (2 == i) {
+        else if (2 == i) {           // Saturation
           current_value = changeUIntScale(sat, 0, 255, 0, 100);
         }
-        else if (3 == i) {
+        else if (3 == i) {           // Dimmer - Color
           current_value = Settings->light_dimmer;
         }
-        else if (4 == i) {
+        else if (4 == i) {           // Dimmer2 - White
           current_value = LightGetDimmer(2);
         }
       } else {
         current_value = changeUIntScale(Settings->light_color[i], 0, 255, 0, 100);
       }
       if (current_value != Web.slider[i]) {
+        if ((1 == i) || (3 == i)) {  // Hue or Dimmer change needs Saturation slider gradient update
+          hue_bri_change = true;
+        }
         if (WebUpdateSliderTime()) {
           Web.slider[i] = current_value;
         }
@@ -1960,6 +1964,9 @@ bool HandleRootStatusRefresh(void) {
         WSContentSend_P(PSTR("eb('sl%d').value='%d';"), i +1, current_value);
       }
     }
+  }
+  if (hue_bri_change) {
+    WSContentSend_P(PSTR("lc('h',99,0);"));  // Update Saturation slider color gradient when command color/dimmer is executed
   }
 #endif  // USE_LIGHT
 
@@ -1998,7 +2005,7 @@ bool HandleRootStatusRefresh(void) {
   WSContentSend_P(PSTR("{t}"));        // <table style='width:100%'>
   WSContentSeparator(3);               // Reset seperator to ignore previous outputs 
   if (Settings->web_time_end) {
-    WSContentSend_P(PSTR("{s}" D_TIMER_TIME "{m}%s{e}"), GetDateAndTime(DT_LOCAL).substring(Settings->web_time_start, Settings->web_time_end).c_str());
+    WSContentSend_P(PSTR("{s}" D_TIME_OF_DAY "{m}%s{e}"), GetDateAndTime(DT_LOCAL).substring(Settings->web_time_start, Settings->web_time_end).c_str());
     WSContentSeparator(0);             // Print separator
   }
   XsnsXdrvCall(FUNC_WEB_SENSOR);
@@ -3002,7 +3009,7 @@ void HandleInformation(void) {
   }
   WSContentSeparatorIFat();
 #ifdef CONFIG_ESP_WIFI_REMOTE_ENABLED
-  WSContentSend_P(PSTR("}1" D_HOSTED_MCU "}2%s (%s)"), GetHostedMCU().c_str(), GetHostedMCUFwVersion().c_str());
+  WSContentSend_P(PSTR("}1" D_HOSTED_MCU "}2%s (%s)"), GetHostedMCU().c_str(), GetHostedFwVersion(1).c_str());
   WSContentSeparatorIFat();
 #endif  // CONFIG_ESP_WIFI_REMOTE_ENABLED
   bool show_hr = false;

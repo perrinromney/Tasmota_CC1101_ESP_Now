@@ -22,7 +22,6 @@ def test_parameter_accepts_value_providers()
   test_anim.duration = 0
   test_anim.loop = false
   test_anim.opacity = 255
-  test_anim.name = "test"
   
   # Test with static integer value (using existing 'opacity' parameter with range 0-255)
   assert(test_anim.set_param("opacity", 42) == true, "Should accept static integer")
@@ -129,7 +128,7 @@ def test_type_validation()
   
   # Create a test class with different parameter types
   class TestClass : animation.parameterized_object
-    static var PARAMS = encode_constraints({
+    static var PARAMS = animation.enc_params({
       "int_param": {"default": 42},                    # Default type is "int"
       "explicit_int_param": {"type": "int", "default": 10},
       "string_param": {"type": "string", "default": "hello"},
@@ -140,6 +139,9 @@ def test_type_validation()
     
     def init(engine)
       super(self).init(engine)
+    end
+    def tostring()
+      return ''
     end
   end
   

@@ -19,7 +19,6 @@ fire.flicker_amount = 100
 fire.cooling_rate = 55
 fire.sparking_rate = 120
 fire.priority = 255
-fire.name = "test_fire"
 
 print(f"Created fire animation: {fire}")
 print(f"Initial state - running: {fire.is_running}, priority: {fire.priority}")
@@ -78,7 +77,7 @@ var frame = animation.frame_buffer(30)
 frame.clear()
 
 # Render the fire animation
-var rendered = fire.render(frame, engine.time_ms)
+var rendered = fire.render(frame, engine.time_ms, engine.strip_length)
 print(f"Rendered to frame buffer: {rendered}")
 
 # Check that some pixels have been set (fire should create non-black pixels)
@@ -116,8 +115,6 @@ fire_palette.palette = animation.PALETTE_FIRE
 fire_palette.cycle_period = 5000
 fire_palette.transition_type = 1  # Use sine transition (smooth)
 fire_palette.brightness = 255
-fire_palette.range_min = 0
-fire_palette.range_max = 255
 fire.color = fire_palette
 print("Set back to fire palette")
 
@@ -156,7 +153,7 @@ tiny_fire.start()
 tiny_engine.time_ms = current_time + 125
 tiny_fire.update(current_time + 125)
 var tiny_frame = animation.frame_buffer(1)
-tiny_fire.render(tiny_frame, tiny_engine.time_ms)
+tiny_fire.render(tiny_frame, tiny_engine.time_ms, tiny_engine.strip_length)
 print("Tiny fire (1 pixel) created and rendered successfully")
 
 # Zero intensity
@@ -169,7 +166,7 @@ dim_fire.start()
 dim_engine.time_ms = current_time + 250
 dim_fire.update(current_time + 250)
 var dim_frame = animation.frame_buffer(10)
-dim_fire.render(dim_frame, dim_engine.time_ms)
+dim_fire.render(dim_frame, dim_engine.time_ms, dim_engine.strip_length)
 print("Dim fire (0 intensity) created and rendered successfully")
 
 print("\n=== Fire Animation Test Complete ===")
