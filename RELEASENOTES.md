@@ -112,7 +112,7 @@ The latter links can be used for OTA upgrades too like ``OtaUrl https://ota.tasm
 
 [Complete list](BUILDS.md) of available feature and sensors.
 
-## Changelog v15.2.0 Steven
+## Changelog v15.2.0 Stephan
 ### Added
 - Support for ESP32-P4 rev.3 [#24146](https://github.com/arendst/Tasmota/issues/24118)
 - Support for Analog Gauges [#24153](https://github.com/arendst/Tasmota/issues/24153)

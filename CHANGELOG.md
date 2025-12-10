@@ -4,7 +4,7 @@ All notable changes to this project will be documented in this file.
 ## [Released]
 
 ## [15.2.0]
-- Release Steven
+- Release Stephan
 
 ## [15.1.0.3] 20251212
 ### Added
